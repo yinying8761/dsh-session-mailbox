@@ -76,6 +76,30 @@ plugin_manager  install_bundle  <本包目录的绝对路径>
 
 > 用 `session_send` 发给 `session-06ed43db-3976-4537-814a-66113d90509d`。
 
+## 实际使用
+
+截图来自真实会话（发布前裁掉了侧边栏里的工作区与会话列表）。
+
+**1. 交办** —— 「需求等文档撰写者」用 `session_send` 把任务交给「审查者」，返回 `Delivered to 审查者 (…) in queue mode.`
+
+![用 session_send 交办任务](docs/usage/01-handoff.png)
+
+**2. 对方收到** —— 「审查者」会话里出现一条带来源与回信引指的用户消息。
+
+![目标会话收到带来源的消息](docs/usage/02-received.png)
+
+**3. 回信** —— 「审查者」用同一条通道把结论发回给发信会话。
+
+![对方用 session_send 回信](docs/usage/03-reply.png)
+
+**4. 收到回复** —— 发信会话收到对方的结论。
+
+![发信会话收到回复](docs/usage/04-reply-received.png)
+
+**5. 继续干活** —— 发信会话据此继续写文档，两个会话各司其职。
+
+![发信会话据此继续](docs/usage/05-continue.png)
+
 ## 投递长什么样
 
 目标会话收到的是一条普通用户消息，自带来源前缀：
