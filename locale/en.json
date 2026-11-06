@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session mailbox",
+    "description": "Lets an agent list other sessions, read their recent messages, and deliver work to them."
+  }
+}
