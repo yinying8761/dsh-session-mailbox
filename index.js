@@ -12,6 +12,8 @@
 
 import { randomUUID } from 'node:crypto'
 
+import { decideTarget, normalizePolicy } from './lib/policy.js'
+
 /** Cordis plugin name. */
 export const name = 'session-mailbox'
 
@@ -160,8 +162,10 @@ function describeFailure(error) {
 /**
  * Register the three Session mailbox tools for this composition.
  * @param ctx - context providing the tool registry and the Session services.
+ * @param config - the row configuration: `defaultAllow`, `allow`, and `deny`.
  */
-export function apply(ctx) {
+export function apply(ctx, config) {
+  const policy = normalizePolicy(config)
   ctx.tools.register({
     name: 'session_list',
     description:
@@ -198,6 +202,7 @@ export function apply(ctx) {
                 updatedAt: { type: 'number' },
                 running: { type: 'boolean' },
                 cwd: { type: 'string' },
+                allowed: { type: 'boolean' },
               },
             },
           },
@@ -207,7 +212,8 @@ export function apply(ctx) {
         const lines = [`${value.total} Session(s), newest first:`]
         value.sessions.forEach((row, index) => {
           const when = row.updatedAt > 0 ? new Date(row.updatedAt).toISOString() : 'unknown time'
-          lines.push(`${index + 1}. ${row.title || '(untitled)'} — ${row.running ? 'running' : 'idle'} — ${when} — ${row.id}`)
+          const blocked = row.allowed === false ? ' — blocked by policy' : ''
+          lines.push(`${index + 1}. ${row.title || '(untitled)'} — ${row.running ? 'running' : 'idle'} — ${when} — ${row.id}${blocked}`)
         })
         if (value.sessions.length === 0) lines.push('(none)')
         return [{ type: 'text', text: lines.join('\n') }]
@@ -215,10 +221,13 @@ export function apply(ctx) {
     },
     async execute(args, exec) {
       const rows = await loadSessions(ctx, args.includeSubagents === true)
-      let filtered = rows
+      let filtered = rows.map((row) => ({
+        ...row,
+        allowed: decideTarget(policy, row).allowed,
+      }))
       if (typeof args.query === 'string' && args.query.trim().length > 0) {
         const needle = args.query.trim().toLowerCase()
-        filtered = rows.filter((row) => row.title.toLowerCase().includes(needle))
+        filtered = filtered.filter((row) => row.title.toLowerCase().includes(needle))
       }
       const sessions = filtered.slice(0, clampInt(args.limit, 20, 1, MAX_LIST_LIMIT))
       return { total: filtered.length, sessions }
@@ -274,6 +283,13 @@ export function apply(ctx) {
 
       const target = await resolveTarget(ctx, args.target)
       if (target.id === String(sender.id)) throw new Error('session_send cannot target the calling Session')
+      const decision = decideTarget(policy, target)
+      if (!decision.allowed) {
+        throw new Error(
+          `delivery to ${labelOf(target)} is blocked by policy: ${decision.reason}; ` +
+            'adjust the session-mailbox row config (defaultAllow / allow / deny)',
+        )
+      }
 
       const senderId = String(sender.id)
       const senderTitle = (await ctx.sessionQuery.readTitle(sender.id))?.title
@@ -360,6 +376,10 @@ export function apply(ctx) {
     async execute(args, exec) {
       if (exec.agent === undefined) throw new Error('session_read needs a calling agent Session')
       const target = await resolveTarget(ctx, args.target)
+      const decision = decideTarget(policy, target)
+      if (!decision.allowed) {
+        throw new Error(`reading ${labelOf(target)} is blocked by policy: ${decision.reason}`)
+      }
       const limit = clampInt(args.limit, 10, 1, MAX_READ_LIMIT)
       const { messages, total } = await readMessages(ctx, target.id, limit)
       return { sessionId: target.id, title: target.title, total, messages }

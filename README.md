@@ -141,6 +141,48 @@ plugin_manager  install_bundle  <本包目录的绝对路径>
 - 读取：`ctx.sessionQuery.readSurface(sessionId)`，只取 `user/message` 与 `assistant/message`。
 - 工具定义是普通对象（不 import `@deepseek-ai/dsh-tools`），因此本 bundle 零依赖、无构建步骤。
 
+## 目标策略（可选）
+
+默认所有会话互相可见、可投递。需要收紧时，在 profile 的 `cordis.patch.yml` 里给这一行加 `config`：
+
+```yaml
+- id: session-mailbox
+  name: dsh-session-mailbox
+  config:
+    defaultAllow: true     # 默认是否允许（默认 true）
+    allow: []              # 非空时，只有名单内的目标可投递、可读
+    deny: []               # 永远拒绝，优先级最高
+```
+
+- 匹配是**精确匹配**：完整 session id，或完整标题（大小写不敏感）。不做片段匹配 —— 松匹配绝不应该扩大谁能被唤醒。
+- 优先级：`deny` > `allow` > `defaultAllow`。
+- 策略同时作用于 `session_send` 与 `session_read`；`session_list` 仍列出所有会话，被拒目标会标注 `blocked by policy`。
+- 改配置后需要重启 Harness。
+
+两种典型用法：
+
+```yaml
+# 只允许两个会话互通
+config:
+  defaultAllow: false
+  allow: ["审查者", "需求等文档撰写者"]
+
+# 只禁止一个会话，其余照常
+config:
+  defaultAllow: true
+  deny: ["session-06ed43db-3976-4537-814a-66113d90509d"]
+```
+
+> 1.1.0 是配置式，还没有会话级图形开关。要在会话头部做一个「允许跨会话交流」的开关，需要额外的 Host Remote 方法与 Client 插件。
+
+## 测试
+
+```bash
+npm test
+```
+
+纯策略逻辑在 [`lib/policy.js`](lib/policy.js)，[`test/policy.test.js`](test/policy.test.js) 用 `node:test` 覆盖了默认允许 / 默认拒绝、允许名单、拒绝优先、精确匹配与脏配置回退。
+
 ## 限制
 
 - 只能投递给**普通会话**；subagent 子会话会被 `session/agent-busy` 拒绝（那种场景用内置 `send_message`）。

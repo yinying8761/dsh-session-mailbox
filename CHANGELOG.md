@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- 新增目标策略：`defaultAllow`、`allow`、`deny` 三项配置；`deny` 优先，`allow` 非空时只放行名单内目标。策略同时约束 `session_send` 与 `session_read`。
+- `session_list` 每行新增 `allowed` 字段，被策略拒绝的目标以 `blocked by policy` 标注。
+- 策略实现抽到 `lib/policy.js`，新增 `node:test` 单测（8 例）与 `npm test`。
+- 匹配规则收紧为精确 session id 或完整标题（大小写不敏感），不做片段匹配。
+
 ## 1.0.1
 
 - 修复：投递的消息补全 `id` 与 `role`。首版只写 `{ content, source }`，生成的 `user/message` 事件通不过 session 的 replay 校验（`lacks an identified message`），导致目标会话在冷读或重启后无法重放（`SessionPersistenceCorruptionError`）。会话内当轮不受影响，所以问题只在重启后暴露。

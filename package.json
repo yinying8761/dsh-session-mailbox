@@ -1,10 +1,13 @@
 {
   "name": "dsh-session-mailbox",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Peer messaging between ordinary DeepSeek Harness sessions: list other sessions, read their recent messages, and deliver work to them.",
   "type": "module",
   "license": "MIT",
   "author": "yinying8761",
+  "scripts": {
+    "test": "node --test"
+  },
   "homepage": "https://github.com/yinying8761/dsh-session-mailbox#readme",
   "repository": {
     "type": "git",
@@ -33,6 +36,7 @@
   },
   "files": [
     "index.js",
+    "lib/*.js",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
